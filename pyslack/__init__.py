@@ -108,6 +108,31 @@ class SlackClient(object):
         })
         return self._make_request(method, params)
 
+    def file_upload(self, channels, file, **params):
+        """files.upload
+        
+        This method uploads a file.
+        
+        Required parameters:
+            `channels`: An array of the channels names to share the file
+            `file`: The file path to upload
+        
+        https://api.slack.com/methods/files.upload   
+        """
+        method = 'files.upload'
+        channel_ids = []
+        for channel in channels:
+            if self._channel_is_name(channel):
+                # If the channel id is not found, will share the file as private by default 
+                channel_ids.append(self.channel_name_to_id(channel))
+        
+        params.update({
+            'channels': ','.join(channel_ids),
+        })
+        
+        files = {'file': open(file, 'rb')}
+        
+        return self._make_request(method, params, files)
 
 class SlackHandler(logging.Handler):
     """A logging handler that posts messages to a Slack channel!
