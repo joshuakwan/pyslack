@@ -8,7 +8,6 @@ class SlackError(Exception):
 
 
 class SlackClient(object):
-
     BASE_URL = 'https://slack.com/api'
 
     def __init__(self, token, verify=False):
@@ -27,9 +26,9 @@ class SlackClient(object):
         http://requests.readthedocs.org/en/latest/user/advanced/#ssl-cert-verification
         """
         if self.blocked_until is not None and \
-                datetime.datetime.utcnow() < self.blocked_until:
+                        datetime.datetime.utcnow() < self.blocked_until:
             raise SlackError("Too many requests - wait until {0}" \
-                    .format(self.blocked_until))
+                             .format(self.blocked_until))
 
         url = "%s/%s" % (SlackClient.BASE_URL, method)
         params['token'] = self.token
@@ -39,9 +38,9 @@ class SlackClient(object):
             # Too many requests
             retry_after = int(response.headers.get('retry-after', '1'))
             self.blocked_until = datetime.datetime.utcnow() + \
-                    datetime.timedelta(seconds=retry_after)
+                                 datetime.timedelta(seconds=retry_after)
             raise SlackError("Too many requests - retry after {0} second(s)" \
-                    .format(retry_after))
+                             .format(retry_after))
 
         result = response.json()
         if not result['ok']:
@@ -60,6 +59,14 @@ class SlackClient(object):
         """
         method = 'channels.list'
         params.update({'exclude_archived': exclude_archived and 1 or 0})
+        return self._make_request(method, params)
+
+    def channel_history(self, channel, **params):
+        method = 'channels.history'
+        channel_id = self.channel_name_to_id(channel)
+        params.update({
+            'channel': channel_id,
+        })
         return self._make_request(method, params)
 
     def channel_name_to_id(self, channel_name, force_lookup=False):
@@ -125,14 +132,15 @@ class SlackClient(object):
             if self._channel_is_name(channel):
                 # If the channel id is not found, will share the file as private by default 
                 channel_ids.append(self.channel_name_to_id(channel))
-        
+
         params.update({
             'channels': ','.join(channel_ids),
         })
-        
+
         files = {'file': open(file, 'rb')}
-        
+
         return self._make_request(method, params, files)
+
 
 class SlackHandler(logging.Handler):
     """A logging handler that posts messages to a Slack channel!
@@ -140,6 +148,7 @@ class SlackHandler(logging.Handler):
     References:
     http://docs.python.org/2/library/logging.html#handler-objects
     """
+
     def __init__(self, token, channel, verify=False, **kwargs):
         super(SlackHandler, self).__init__()
         self.client = SlackClient(token, verify)
