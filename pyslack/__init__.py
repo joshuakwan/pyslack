@@ -15,6 +15,7 @@ class SlackClient(object):
         self.verify = verify
         self.blocked_until = None
         self.channel_name_id_map = {}
+        self.user_id_name_map = {}
 
     def _channel_is_name(self, channel):
         return channel.startswith('#')
@@ -77,6 +78,30 @@ class SlackClient(object):
             self.channel_name_id_map = {channel['name']: channel['id'] for channel in channels}
         channel = channel_name.startswith('#') and channel_name[1:] or channel_name
         return self.channel_name_id_map.get(channel)
+
+    def users_list(self, **params):
+        method = 'users.list'
+        return self._make_request(method, params)
+
+    def user_id_to_name(self, user_id, get_realname=True, force_lookup=False):
+        if force_lookup or not self.user_id_name_map:
+            users = self.users_list()['members']
+            self.user_id_name_map = {user['id']: {'name': user['name'], 'realname': user['profile']['real_name']} for
+                                     user in users}
+        if get_realname:
+            return self.user_id_name_map.get(user_id)['realname']
+        else:
+            return self.user_id_name_map.get(user_id)['name']
+
+    def user_name_to_id(self, user_name, force_lookup=False):
+        if force_lookup or not self.user_id_name_map:
+            users = self.users_list()['members']
+            self.user_id_name_map = {user['id']: {'name': user['name'], 'realname': user['profile']['real_name']} for
+                                     user in users}
+        for id, names in self.user_id_name_map.iteritems():
+            if names['name'] == user_name or names['realname'] == user_name:
+                return id
+        return None
 
     def chat_post_message(self, channel, text, **params):
         """chat.postMessage
