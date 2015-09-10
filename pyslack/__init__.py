@@ -15,6 +15,7 @@ class SlackClient(object):
         self.verify = verify
         self.blocked_until = None
         self.channel_name_id_map = {}
+        self.group_name_id_map = {}
         self.user_id_name_map = {}
 
     def _channel_is_name(self, channel):
@@ -62,14 +63,6 @@ class SlackClient(object):
         params.update({'exclude_archived': exclude_archived and 1 or 0})
         return self._make_request(method, params)
 
-    def channel_history(self, channel, **params):
-        method = 'channels.history'
-        channel_id = self.channel_name_to_id(channel)
-        params.update({
-            'channel': channel_id,
-        })
-        return self._make_request(method, params)
-
     def channel_name_to_id(self, channel_name, force_lookup=False):
         """Helper name for getting a channel's id from its name
         """
@@ -78,6 +71,43 @@ class SlackClient(object):
             self.channel_name_id_map = {channel['name']: channel['id'] for channel in channels}
         channel = channel_name.startswith('#') and channel_name[1:] or channel_name
         return self.channel_name_id_map.get(channel)
+
+    def channel_history(self, channel, **params):
+        method = 'channels.history'
+        channel_id = self.channel_name_to_id(channel)
+        params.update({
+            'channel': channel_id,
+        })
+        return self._make_request(method, params)
+
+    def groups_list(self, exclude_archived=True, **params):
+        """groups.list
+        This method returns a list of all groups in the team. This includes
+        channels the caller is in, channels they are not currently in, and
+        archived channels. The number of (non-deactivated) members in each
+        channel is also returned.
+        https://api.slack.com/methods/groups.list
+        """
+        method = 'groups.list'
+        params.update({'exclude_archived': exclude_archived and 1 or 0})
+        return self._make_request(method, params)
+
+    def group_name_to_id(self, group_name, force_lookup=False):
+        """Helper name for getting a group's id from its name
+        """
+        if force_lookup or not self.group_name_id_map:
+            groups = self.groups_list()['groups']
+            self.group_name_id_map = {group['name']: group['id'] for group in groups}
+        group = group_name.startswith('#') and group_name[1:] or group_name
+        return self.group_name_id_map.get(group)
+
+    def group_history(self, group, **params):
+        method = 'groups.history'
+        group_id = self.group_name_to_id(group)
+        params.update({
+            'channel': group_id,
+        })
+        return self._make_request(method, params)
 
     def users_list(self, **params):
         method = 'users.list'
